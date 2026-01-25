@@ -16,9 +16,12 @@ import {
   Database,
   Users,
   Globe,
-  Check
+  Check,
+  Layers,
+  Loader2
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { usePRDAnalysis, type PRDInput } from "@/hooks/usePRDAnalysis";
 
 const platforms = [
   { id: "web", label: "Web App", icon: Globe },
@@ -31,11 +34,9 @@ const categories = [
   "Education", "Healthcare", "Finance", "Entertainment"
 ];
 
-import { Layers } from "lucide-react";
-
 const CreateProject = () => {
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PRDInput>({
     name: "",
     category: "",
     description: "",
@@ -45,6 +46,9 @@ const CreateProject = () => {
     hasAuth: true,
     hasDatabase: true,
   });
+
+  const { analyzePRD, isAnalyzing } = usePRDAnalysis();
+  const navigate = useNavigate();
 
   const steps = [
     { number: 1, title: "Basic Info" },
@@ -67,6 +71,16 @@ const CreateProject = () => {
 
   const handleBack = () => {
     if (step > 1) setStep(step - 1);
+  };
+
+  const handleGenerate = async () => {
+    const architecture = await analyzePRD(formData);
+    if (architecture) {
+      // Store the architecture in sessionStorage for the generating page
+      sessionStorage.setItem("prdArchitecture", JSON.stringify(architecture));
+      sessionStorage.setItem("prdFormData", JSON.stringify(formData));
+      navigate("/generating");
+    }
   };
 
   return (
@@ -366,10 +380,10 @@ const CreateProject = () => {
               <div className="glass p-6 rounded-xl">
                 <div className="flex items-center gap-3 mb-4">
                   <Sparkles className="w-5 h-5 text-primary" />
-                  <span className="font-medium">AI Models Selected</span>
+                  <span className="font-medium">AI Models to be Used</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {["GPT-4 (Logic)", "Claude 3 (Docs)", "DALL-E 3 (Assets)", "Gemini (Code)"].map((model) => (
+                  {["Gemini Flash (Analysis)", "Gemini Flash (Code Gen)", "Gemini Flash (UI Design)", "Gemini Flash (Backend)"].map((model) => (
                     <div key={model} className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Check className="w-4 h-4 text-primary" />
                       {model}
@@ -379,7 +393,7 @@ const CreateProject = () => {
               </div>
 
               <div className="text-center text-sm text-muted-foreground">
-                <p>Estimated build time: <span className="text-primary font-medium">15-25 minutes</span></p>
+                <p>Estimated build time: <span className="text-primary font-medium">2-5 minutes</span></p>
               </div>
             </motion.div>
           )}
@@ -390,7 +404,7 @@ const CreateProject = () => {
           <Button
             variant="ghost"
             onClick={handleBack}
-            disabled={step === 1}
+            disabled={step === 1 || isAnalyzing}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -402,12 +416,24 @@ const CreateProject = () => {
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           ) : (
-            <Link to="/generating">
-              <Button variant="forge" size="lg">
-                <Sparkles className="w-5 h-5 mr-2" />
-                Generate App
-              </Button>
-            </Link>
+            <Button 
+              variant="forge" 
+              size="lg" 
+              onClick={handleGenerate}
+              disabled={isAnalyzing || !formData.name}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Analyzing PRD...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  Generate App
+                </>
+              )}
+            </Button>
           )}
         </div>
       </main>
